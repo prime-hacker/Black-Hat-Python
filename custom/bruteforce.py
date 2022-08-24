@@ -93,6 +93,8 @@ if __name__ == "__main__":
                                 failed_passwords_file.write(f"{response.request.data['pwd']}\n")
                 except Exception as e:
                     print('Looks like something went wrong:', e)
+                    with open('./failed_requests.txt', 'a+') as failed_passwords_file:
+                            failed_passwords_file.write(f"{response.request.data['pwd']}\n")
             
             # sleep for 5 minutes after executing a batch of [step] concurrent requests
             print(f"batch {batch} ended @ {datetime.now().strftime('%H:%M:%S')}")
